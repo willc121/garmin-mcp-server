@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "garmin": {
+      "command": "node",
+      "args": ["/Users/williamchung/projects/garmin-mcp-server/dist/index.js"],
+      "env": {
+        "SUPABASE_URL": "https://ylcbldppuaugitdnrjxv.supabase.co",
+        "SUPABASE_ANON_KEY": "NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_ZqiCLy341yzYx3_BERDZ3g_Ct9WPiVLsb_publishable_ZqiCLy341yzYx3_BERDZ3g_Ct9WPiVL"
+      }
+    }
+  }
+}
