@@ -1,65 +1,39 @@
 # Garmin Health MCP Server
 
-A Model Context Protocol (MCP) server that lets you query your Garmin health data directly in Claude Desktop.
+Query your Garmin health data in plain English through Claude Desktop.
 
-## What This Does
+**[Live Demo & Full Writeup →](https://willchung.io/garmin)**
 
-Instead of copy-pasting data or using a web dashboard, you can ask Claude natural questions:
+## Quick Start
 
-- "What's my VO2 max trend this year?"
-- "Am I overtraining?"
-- "How much did I sleep last week?"
-- "What are my predicted race times?"
-
-Claude calls the appropriate tools and fetches only the data it needs.
-
-## Prerequisites
+### Prerequisites
 
 - Node.js 18+
-- Claude Desktop installed
-- Garmin data in Supabase (see main project)
+- Claude Desktop
+- Garmin data in Supabase
 
-## Setup
-
-### 1. Install dependencies
-
+### Install
 ```bash
-cd garmin-mcp-server
+git clone https://github.com/willc121/garmin-health-mcp-server.git
+cd garmin-health-mcp-server
 npm install
-```
-
-### 2. Set environment variables
-
-Create a `.env` file or export these:
-
-```bash
-export SUPABASE_URL="https://ylcbldppuaugitdnrjxv.supabase.co"
-export SUPABASE_ANON_KEY="your-supabase-anon-key"
-```
-
-### 3. Build the server
-
-```bash
 npm run build
 ```
 
-### 4. Configure Claude Desktop
+### Configure Claude Desktop
 
-Open your Claude Desktop config file:
+Add to your Claude Desktop config:
 
-- **Mac:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-
-Add this to the `mcpServers` section:
-
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`  
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 ```json
 {
   "mcpServers": {
     "garmin": {
       "command": "node",
-      "args": ["/FULL/PATH/TO/garmin-mcp-server/dist/index.js"],
+      "args": ["/absolute/path/to/dist/index.js"],
       "env": {
-        "SUPABASE_URL": "https://ylcbldppuaugitdnrjxv.supabase.co",
+        "SUPABASE_URL": "your-supabase-url",
         "SUPABASE_ANON_KEY": "your-supabase-anon-key"
       }
     }
@@ -67,11 +41,7 @@ Add this to the `mcpServers` section:
 }
 ```
 
-**Important:** Replace `/FULL/PATH/TO/` with the actual path on your machine.
-
-### 5. Restart Claude Desktop
-
-Completely quit and reopen Claude Desktop. You should see a hammer icon 🔨 indicating tools are available.
+Restart Claude Desktop. The Garmin connector should appear in your connectors menu.
 
 ## Available Tools
 
@@ -83,64 +53,56 @@ Completely quit and reopen Claude Desktop. You should see a hammer icon 🔨 ind
 | `get_sleep` | Sleep statistics |
 | `get_race_predictions` | Predicted race times |
 | `get_heart_rate_zones` | Personalized HR training zones |
-| `get_training_load` | Acute/chronic workload for overtraining detection |
+| `get_training_load` | Acute/chronic workload ratio |
 
 ## Example Queries
-
-Once configured, try asking Claude:
-
 ```
-What's my current VO2 max and how has it changed over time?
+What's my VO2 max?
 ```
-
 ```
-Show me my activity breakdown for 2024
+Am I overtraining?
 ```
-
 ```
-Am I at risk of overtraining? Check my training load.
+Compare my running vs cycling this year
 ```
 
-```
-What are my heart rate zones?
-```
+## Getting Your Garmin Data
+
+### 1. Request your data export
+
+- Go to [Garmin Account Management](https://www.garmin.com/account)
+- Navigate to Account Settings → Data Management
+- Click "Export Your Data" and request all data
+- [Full instructions →](https://support.garmin.com/en-US/?faq=q22kMdCbU23NUT2Wmspz16)
+
+### 2. Wait for the email
+
+Garmin sends a download link within 48 hours. The export can be several GB depending on how long you've been tracking.
+
+### 3. Download and extract
+
+You'll get a zip with JSON files for activities, sleep, VO2 max, heart rate, and more.
+
+### 4. Load into a database
+
+The raw export is too large to query directly (mine was 9 years of data), so I loaded it into **Supabase** (free tier works fine).
+
+You'll need these tables:
+- `vo2_max` — VO2 max readings by date and sport
+- `activities` — Activity records with type, duration, distance, HR
+- `sleep_summary` — Aggregated sleep stats
+- `race_predictions` — Garmin's predicted race times
+- `heart_rate_zones` — HR zone boundaries
+- `training_load` — Daily training load metrics
+
+I wrote Python scripts to parse the Garmin JSON and insert into Supabase. Happy to share if there's interest — open an issue.
 
 ## Troubleshooting
 
-**Claude doesn't show the hammer icon:**
-- Check your config file JSON syntax
-- Make sure the path is absolute, not relative
-- Restart Claude Desktop completely (quit, not just close)
-
-**"SUPABASE_ANON_KEY required" error:**
-- Make sure the env vars are in your config file
-- Or export them in your shell before running
-
-**Connection errors:**
-- Verify your Supabase URL and key are correct
-- Test by running: `npm run dev`
-
-## Development
-
-Run in development mode (without building):
-
-```bash
-npm run dev
-```
-
-## Architecture
-
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Claude Desktop │────▶│   MCP Server    │────▶│    Supabase     │
-│  (asks question)│◀────│   (this code)   │◀────│   (your data)   │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-```
-
-1. You ask Claude a question about your health data
-2. Claude determines which tool(s) to call
-3. MCP server queries Supabase for just that data
-4. Claude receives the data and formulates a response
+| Problem | Fix |
+|---------|-----|
+| Connector doesn't appear | Check JSON syntax, use absolute path, fully restart Claude |
+| Connection errors | Verify Supabase credentials |
 
 ## License
 

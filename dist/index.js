@@ -1,9 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+require("dotenv/config");
 const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 const supabase_js_1 = require("@supabase/supabase-js");
+const tools_catalog_1 = require("./tools.catalog");
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
@@ -87,8 +89,9 @@ async function getActivities(startDate, endDate, activityType) {
     let filtered = all;
     if (startDate)
         filtered = filtered.filter((a) => a.start_time >= startDate);
+    // Make endDate exclusive to match your schemas
     if (endDate)
-        filtered = filtered.filter((a) => a.start_time <= endDate);
+        filtered = filtered.filter((a) => a.start_time < endDate);
     if (activityType)
         filtered = filtered.filter((a) => a.activity_type === activityType);
     const groups = {};
@@ -197,7 +200,10 @@ async function getRacePredictions() {
     };
 }
 async function getHeartRateZones() {
-    const { data, error } = await supabase.from("heart_rate_zones").select("*").limit(1);
+    const { data, error } = await supabase
+        .from("heart_rate_zones")
+        .select("*")
+        .limit(1);
     if (error)
         throw error;
     const zones = data?.[0];
@@ -271,73 +277,8 @@ async function getHealthSummary() {
 // ============================================================================
 const server = new index_js_1.Server({ name: "garmin-health-mcp-server", version: "1.0.0" }, { capabilities: { tools: {} } });
 server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
-    return {
-        tools: [
-            {
-                name: "get_health_summary",
-                description: "Get an overview of all health data including VO2 max, activities, sleep, and race predictions",
-                inputSchema: { type: "object", properties: {} },
-            },
-            {
-                name: "get_vo2max",
-                description: "Get VO2 max history and trends. VO2 max measures cardiovascular fitness in ml/kg/min.",
-                inputSchema: {
-                    type: "object",
-                    properties: {
-                        start_date: { type: "string", description: "Start date (YYYY-MM-DD)" },
-                        end_date: { type: "string", description: "End date (YYYY-MM-DD, exclusive recommended)" },
-                        sport: { type: "string", description: "Filter by sport (e.g., 'running', 'cycling')" },
-                    },
-                },
-            },
-            {
-                name: "get_activities",
-                description: "Get activity breakdown by type, including counts, distances, and durations",
-                inputSchema: {
-                    type: "object",
-                    properties: {
-                        start_date: { type: "string", description: "Start date (YYYY-MM-DD)" },
-                        end_date: { type: "string", description: "End date (YYYY-MM-DD)" },
-                        activity_type: {
-                            type: "string",
-                            description: "Filter by activity type (e.g., 'running')",
-                        },
-                    },
-                },
-            },
-            {
-                name: "get_sleep",
-                description: "Get sleep statistics including average duration and total nights tracked. Optionally filter by date range.",
-                inputSchema: {
-                    type: "object",
-                    properties: {
-                        start_date: { type: "string", description: "Start date (YYYY-MM-DD)" },
-                        end_date: { type: "string", description: "End date (YYYY-MM-DD, exclusive recommended)" },
-                    },
-                },
-            },
-            {
-                name: "get_race_predictions",
-                description: "Get predicted race times for 5K, 10K, half marathon, and marathon based on current fitness",
-                inputSchema: { type: "object", properties: {} },
-            },
-            {
-                name: "get_heart_rate_zones",
-                description: "Get personalized heart rate training zones based on max HR and lactate threshold",
-                inputSchema: { type: "object", properties: {} },
-            },
-            {
-                name: "get_training_load",
-                description: "Get training load data including acute/chronic workload ratio to assess overtraining risk",
-                inputSchema: {
-                    type: "object",
-                    properties: {
-                        days: { type: "number", description: "Number of days (default: 30)" },
-                    },
-                },
-            },
-        ],
-    };
+    // Single source of truth: tools.catalog.ts
+    return { tools: tools_catalog_1.TOOL_CATALOG };
 });
 server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
