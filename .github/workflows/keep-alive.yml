@@ -2,7 +2,8 @@ name: Keep Supabase Alive
 
 on:
   schedule:
-    - cron: "0 0 */3 * *" # Every 3 days (safe margin for 7-day auto-pause)
+    # Runs every Monday and Thursday at midnight UTC (~every 3-4 days, well within 7-day limit)
+    - cron: "0 0 * * 1,4"
   workflow_dispatch: # Allow manual trigger
 
 jobs:
