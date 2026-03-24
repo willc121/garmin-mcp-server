@@ -15,25 +15,55 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Ping Supabase via direct Postgres connection
+      - name: Ping Supabase to keep alive
         run: |
-          npm install pg
+          npm install pg @supabase/supabase-js
 
           node -e "
           const { Client } = require('pg');
+          const { createClient } = require('@supabase/supabase-js');
+
           (async () => {
-            const client = new Client({ connectionString: process.env.DATABASE_URL });
-            try {
-              await client.connect();
-              const res = await client.query('SELECT now() AS time');
-              console.log('✅ Direct Postgres ping succeeded at', res.rows[0].time);
-            } catch (err) {
-              console.error('❌ Postgres connection failed:', err.message);
-              process.exit(1);
-            } finally {
-              await client.end();
+            let pgSuccess = false;
+
+            // Method 1: Direct Postgres connection (most reliable for activity detection)
+            if (process.env.DATABASE_URL) {
+              const client = new Client({ connectionString: process.env.DATABASE_URL });
+              try {
+                await client.connect();
+                const res = await client.query('SELECT now() AS time');
+                console.log('✅ Direct Postgres ping succeeded at', res.rows[0].time);
+                pgSuccess = true;
+              } catch (err) {
+                console.log('⚠️ Postgres connection failed:', err.message);
+              } finally {
+                try { await client.end(); } catch {}
+              }
+            } else {
+              console.log('⚠️ DATABASE_URL not set, skipping direct Postgres');
             }
+
+            // Method 2: Supabase REST API fallback
+            if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+              const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+              const { data, error } = await supabase.from('activities').select('id').limit(1);
+              if (error) {
+                console.log('⚠️ REST API query error:', error.message);
+              } else {
+                console.log('✅ REST API ping succeeded, rows:', data.length);
+              }
+            }
+
+            if (!pgSuccess) {
+              console.log('⚠️ Direct Postgres failed - REST API was used as fallback.');
+              console.log('   To fix: ensure DATABASE_URL secret has the correct Session Pooler connection string.');
+              process.exit(1);
+            }
+
+            console.log('✅ Supabase keepalive complete');
           })();
           "
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
