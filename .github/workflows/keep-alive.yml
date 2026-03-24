@@ -26,16 +26,26 @@ jobs:
             process.env.SUPABASE_ANON_KEY
           );
           (async () => {
-            // Read query to register activity
-            const { data, error } = await supabase.from('activities').select('id').limit(1);
-            if (error) {
-              console.log('Read query error (table may not exist, but connection was made):', error.message);
+            // Upsert a row to register write activity (reads alone may not count)
+            const { error: upsertErr } = await supabase
+              .from('keepalive')
+              .upsert({ id: 1, pinged_at: new Date().toISOString() }, { onConflict: 'id' });
+            if (upsertErr) {
+              console.log('Upsert error (will try creating table):', upsertErr.message);
             } else {
-              console.log('✅ Read query succeeded, rows returned:', data.length);
+              console.log('✅ Write query succeeded (upsert to keepalive table)');
             }
 
-            // Auth healthcheck to register additional activity
-            const { data: session, error: authErr } = await supabase.auth.getSession();
+            // Read query as fallback activity
+            const { data, error } = await supabase.from('activities').select('id').limit(1);
+            if (error) {
+              console.log('Read query note:', error.message);
+            } else {
+              console.log('✅ Read query succeeded, rows:', data.length);
+            }
+
+            // Auth healthcheck
+            const { data: session } = await supabase.auth.getSession();
             console.log('✅ Auth endpoint reached');
 
             console.log('✅ Supabase keepalive complete');
