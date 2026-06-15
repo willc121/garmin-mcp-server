@@ -107,3 +107,7 @@ I wrote Python scripts to parse the Garmin JSON and insert into Supabase. Happy 
 ## License
 
 MIT
+
+---
+
+<sub>🏃 Powered by questionable cardio and an unhealthy amount of VO2 max anxiety. No treadmills were harmed in the making of this server.</sub>
